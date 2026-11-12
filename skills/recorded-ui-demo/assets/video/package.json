@@ -1,0 +1,24 @@
+{
+  "name": "ui-demo-video",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio",
+    "stills": "node stills.mjs",
+    "timeline": "tsx timeline.ts",
+    "render": "remotion render Demo out/demo.mp4",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.529",
+    "@remotion/cli": "4.0.529",
+    "@remotion/renderer": "4.0.529",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "remotion": "4.0.529"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.0.0"
+  }
+}

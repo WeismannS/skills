@@ -1,0 +1,13 @@
+{
+  "name": "demo-recorder",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "record": "tsx flow.ts",
+    "explore": "tsx explore.ts"
+  },
+  "devDependencies": {
+    "playwright": "1.57.0",
+    "tsx": "^4.21.0"
+  }
+}
