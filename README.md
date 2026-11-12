@@ -8,7 +8,16 @@ Skills for [Claude Code](https://docs.claude.com/en/docs/claude-code/skills). Ea
 
 ## Install
 
-Copy a skill's folder into `~/.claude/skills/` to use it in every project, or into `<project>/.claude/skills/` for one project:
+With the [skills CLI](https://github.com/vercel-labs/skills):
+
+```bash
+npx skills add WeismannS/skills                                                  # choose skills and agents
+npx skills add WeismannS/skills --skill recorded-ui-demo -g -a claude-code -y    # every project, Claude Code
+```
+
+Without `-g` the skill goes into the current project. Other agents the CLI supports work too, as long as they can run shell commands and read images.
+
+Or by hand: copy a skill's folder into `~/.claude/skills/` to use it in every project, or into `<project>/.claude/skills/` for one project:
 
 ```bash
 git clone https://github.com/WeismannS/skills.git
