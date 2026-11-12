@@ -2,7 +2,7 @@
 // Demo.tsx is the per-demo script; edit this file only to change the look (theme below).
 import React from 'react';
 import { AbsoluteFill, Easing, OffthreadVideo, Sequence, interpolate, staticFile, useCurrentFrame } from 'remotion';
-import { Cursor, cursorAt, CursorPoint } from './components/Cursor';
+import { Pointer, PointerLog } from './components/Pointer';
 import takeCursor from './cursor.json';
 import takeMarks from './marks.json';
 import takeBoxes from './boxes.json';
@@ -34,11 +34,7 @@ export const sec = (s: number) => Math.round(s * FPS);
 export const M = takeMarks as Record<string, number>;
 export type Box = { x: number; y: number; width: number; height: number };
 export const B = takeBoxes as Record<string, Box | null>;
-type Logged = { path: { t: number; x: number; y: number }[]; clicks: number[] };
-const CURSOR = {
-  path: (takeCursor as Logged).path.map((p) => ({ f: p.t * FPS, x: p.x, y: p.y })) as CursorPoint[],
-  clicks: (takeCursor as Logged).clicks.map((c) => c * FPS),
-};
+const CURSOR = takeCursor as PointerLog;
 
 // ---------------------------------------------------------------------------
 // Camera: a 16:9 rect in CSS px that fills the frame. w = 1920 is the whole page.
@@ -164,8 +160,6 @@ export const Clip: React.FC<{ c: ClipSpec }> = ({ c }) => {
   const r = camAt(t, c.keys);
   const s = W / r.w;
   const takeT = c.src + t * rate;
-  const takeF = takeT * FPS;
-  const pos = cursorAt(takeF, CURSOR.path);
   const durF = sec(c.dur);
   return (
     <Fade dur={durF} inF={c.fadeIn ? 8 : 0} outF={c.fadeOut ? 8 : 0}>
@@ -179,7 +173,8 @@ export const Clip: React.FC<{ c: ClipSpec }> = ({ c }) => {
           style={{ position: 'absolute', left: -r.x * s, top: -r.y * s, width: W * s, height: H * s }}
         />
         <div style={{ position: 'absolute', width: W, height: H, transformOrigin: '0 0', transform: `scale(${s}) translate(${-r.x}px, ${-r.y}px)` }}>
-          <Cursor x={pos.x} y={pos.y} clicks={CURSOR.clicks} frame={takeF} size={40 / s} rippleColor={RIPPLE} />
+          {/* Inside the zoomed layer so it follows the camera; size / s keeps it the same on screen. */}
+          <Pointer log={CURSOR} t={takeT} size={33 / s} ring={RIPPLE} />
         </div>
       </AbsoluteFill>
       {c.overlay?.(takeT)}

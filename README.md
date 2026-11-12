@@ -28,4 +28,4 @@ Claude Code loads it in the next session. Then ask in plain words, for example "
 
 ## License
 
-MIT. The cursor component in recorded-ui-demo is adapted from Digital Samba's [claude-code-video-toolkit](https://github.com/digitalsamba/claude-code-video-toolkit), also MIT; its notice is kept in the file.
+MIT. See [LICENSE](LICENSE).
