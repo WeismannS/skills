@@ -53,7 +53,8 @@ type MaybeBox = Box | null | undefined;
  * A rect around a logged box (or several), with `pad` px around it and room at the bottom for
  * the caption (`captionSafe` of the frame height, default 18%), never tighter than MIN_W.
  * A tall box gives a wide rect (16:9 has to fit its height): box a smaller region instead, or
- * pass `w` to set the width yourself; the rect stays centred on the boxes and top-aligned.
+ * pass `w` to set the width yourself. The boxes are centred in the part of the frame above the
+ * caption, so a small box (a button) sits mid-frame rather than against the top edge.
  */
 export const fit = (boxes: MaybeBox | MaybeBox[], opts: { pad?: number; captionSafe?: number; w?: number } = {}): Rect => {
   const list = (Array.isArray(boxes) ? boxes : [boxes]).filter((b): b is Box => !!b);
@@ -65,7 +66,8 @@ export const fit = (boxes: MaybeBox | MaybeBox[], opts: { pad?: number; captionS
   const x1 = Math.max(...list.map((b) => b.x + b.width)) + pad;
   const y1 = Math.max(...list.map((b) => b.y + b.height)) + pad;
   const w = opts.w ?? Math.max(x1 - x0, (((y1 - y0) / (1 - safe)) * 16) / 9, MIN_W);
-  return clampRect({ x: (x0 + x1) / 2 - w / 2, y: y0, w });
+  const above = ((w * 9) / 16) * (1 - safe); // frame height above the caption
+  return clampRect({ x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - above / 2, w });
 };
 
 /** Camera position at `t` seconds into a clip: holds on each key, eases between them. */
