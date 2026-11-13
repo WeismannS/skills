@@ -4,7 +4,8 @@
  *
  *   npx tsx explore.ts <url> [selector ...]     -> ../explore/<n>.png, boxes printed
  *
- * Uses the same browser as the take: bundled Chromium, or DEMO_CHANNEL=chrome for Google Chrome.
+ * Uses the same browser and page size as the take (1440x720): bundled Chromium, or
+ * DEMO_CHANNEL=chrome for Google Chrome. If the flow passes another viewport, change it here too.
  *
  * Read the screenshot. Box the regions you might zoom on, and prefer small ones (a field, a
  * panel header, a row): a tall box makes a wide camera rect. For pages behind clicks, copy a
@@ -23,7 +24,7 @@ if (!url) {
 }
 fs.mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ channel: process.env.DEMO_CHANNEL || undefined });
-const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+const page = await browser.newPage({ viewport: { width: 1440, height: 720 } });
 await page.goto(url);
 await page.waitForLoadState('networkidle').catch(() => {});
 await page.waitForTimeout(1000);

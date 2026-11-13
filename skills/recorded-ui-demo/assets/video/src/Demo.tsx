@@ -1,6 +1,7 @@
 // The demo's script: cards, camera rects, cut points and captions. Building blocks are in kit.tsx.
 // The take (public/take.mp4) and its logs (marks.json, cursor.json, boxes.json) come from
-// ../record/flow.ts. Everything below is in take seconds and CSS px (1920x1080).
+// ../record/flow.ts. Everything below is in take seconds and the take's CSS px (1440x720 by
+// default; see take.json).
 import React from 'react';
 import { useCurrentFrame } from 'remotion';
 import {
@@ -11,10 +12,11 @@ import {
 export { FPS } from './kit';
 
 // ---------------------------------------------------------------------------
-// Camera rects. Prefer fit() around logged boxes; hand-tune { x, y, w } when a box is not
-// quite the framing you want. w below 960 is clamped (the take is 2x, so that is the limit).
+// Camera rects. The whole page (FULL) is the default: viewers should see the feature, where it
+// lives and what changed. Lean in only on a detail too small to read wide (a value, a badge, a
+// total), at most 1.5x (fit() won't go tighter), hold it briefly, then go back to FULL.
 const PAGE: Rect = FULL;
-const MAIN: Rect = fit(B.main);
+const DETAIL: Rect = fit(B.main);
 
 // ---------------------------------------------------------------------------
 // Cut points, tied to the nearest mark so a re-take lines up without retuning. Clip i plays
@@ -29,20 +31,21 @@ const CLIPS = cutClips(CUTS, [
   {
     part: 'START',
     fadeIn: true,
-    keys: [{ t: 0, r: PAGE }, { t: 1.2, r: PAGE }, { t: 2.2, r: MAIN }],
+    keys: [{ t: 0, r: PAGE }],
     caption: 'One line on what the viewer is looking at.',
   },
   {
     part: 'START',
     fadeOut: true,
-    keys: [{ t: 0, r: MAIN }, { t: 0.8, r: PAGE }],
+    // Wide, a short look at the detail that changed, back to wide.
+    keys: [{ t: 0, r: PAGE }, { t: 1.2, r: PAGE }, { t: 2.1, r: DETAIL }, { t: 4.1, r: DETAIL }, { t: 5, r: PAGE }],
     caption: 'What changed, and why it matters.',
   },
   // A change from outside the browser (flow.ts beat 4): the request slides in at 'call' and the
   // reply lands just before the page changes. Import Terminal from './kit'.
   // {
   //   part: 'AGENT',
-  //   keys: [{ t: 0, r: PAGE }, { t: 2, r: PAGE }, { t: 3, r: fit(B.item) }],
+  //   keys: [{ t: 0, r: PAGE }],
   //   caption: 'An agent marks the item done; the page picks it up on its own.',
   //   overlay: (t) => (
   //     <Terminal t={t} at={M.call} replyAt={Math.min(M.call + 0.35, M.updated - 0.1)} title="agent"

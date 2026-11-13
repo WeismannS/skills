@@ -21,7 +21,10 @@ for c in cur['clicks']:
     nxt = [t for t in ts if t > c]
     lag = nxt[0] - c if nxt else None
     near = min(marks.items(), key=lambda kv: abs(kv[1] - c))[0] if marks else ''
-    flag = '' if lag is not None and 0.03 <= lag <= 0.4 else '  <- check'
+    # On a page that repaints all the time (a blinking caret, an animation) the next repaint is
+    # always moments away, so the gap says nothing about sync.
+    busy = sum(1 for t in ts if c - 0.5 <= t < c) >= 4
+    flag = '' if lag is not None and 0.03 <= lag <= 0.4 else ("  (busy page, can't judge)" if busy and lag is not None and lag < 0.03 else '  <- check')
     print(f"  click {c:6.2f}s  next repaint +{lag if lag is not None else float('nan'):.3f}s  (near mark '{near}'){flag}")
     if lag is not None:
         lags.append(lag)

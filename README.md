@@ -4,7 +4,7 @@ Skills for [Claude Code](https://docs.claude.com/en/docs/claude-code/skills). Ea
 
 | Skill | What it does |
 |---|---|
-| [recorded-ui-demo](skills/recorded-ui-demo) | Makes a demo video of a web app running on your machine. It records one scripted run of the real app in Playwright at 2× resolution, then edits it in Remotion with zooms, a drawn cursor, captions, and title and recap cards. Needs Node 18+, ffmpeg and Python 3. |
+| [recorded-ui-demo](skills/recorded-ui-demo) | Makes a demo video of a web app running on your machine. It records one scripted run of the real app in Playwright at 2× resolution, then edits it in Remotion with the whole page in view, brief zooms only on small details, a drawn cursor, captions under the page, and title and recap cards. Needs Node 18+, ffmpeg and Python 3. |
 
 ## Install
 

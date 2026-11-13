@@ -10,7 +10,8 @@
  * - Put the app in a known state first (reset endpoint, seed, fresh login), so a re-take matches.
  * - After each state change, wait 1.5-2.5 s before the next action: the viewer needs time, and
  *   a clip can be sped up later but not slowed down.
- * - mark() once the UI has settled, and box() every region you will zoom on.
+ * - mark() once the UI has settled, and box() small details the camera may lean in on (a value,
+ *   a badge, a total). The video stays on the whole page by default.
  * - Changes made from outside the browser (an API or MCP call) happen here too, between a mark
  *   before and a waitFor + mark once the page shows them.
  */

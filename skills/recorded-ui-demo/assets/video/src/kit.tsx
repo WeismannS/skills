@@ -1,19 +1,40 @@
 // Building blocks for cutting a recorded take: camera, clips, captions, dark cards, overlays.
 // Demo.tsx is the per-demo script; edit this file only to change the look (theme below).
+//
+// Layout of a clip: the page fills the width of the frame, with a dark strip under it for the
+// caption, so captions never cover the app. The camera stays on the whole page by default and
+// can lean in on a small detail, at most MAX_ZOOM.
 import React from 'react';
 import { AbsoluteFill, Easing, OffthreadVideo, Sequence, interpolate, staticFile, useCurrentFrame } from 'remotion';
 import { Pointer, PointerLog } from './components/Pointer';
 import takeCursor from './cursor.json';
 import takeMarks from './marks.json';
 import takeBoxes from './boxes.json';
+import takeInfo from './take.json';
 
 export const FPS = 30;
+/** Output frame. */
 export const W = 1920;
 export const H = 1080;
-/** Device pixels per CSS px in the take (take.ts `scale`). The camera can zoom this far and stay sharp. */
-export const TAKE_SCALE = 2;
-/** Narrowest camera rect that stays sharp. */
-export const MIN_W = W / TAKE_SCALE;
+/** The take's viewport in CSS px and its device scale, as recorded (take.json from take.ts). */
+export const VIEW = { w: takeInfo.width, h: takeInfo.height };
+export const TAKE_SCALE = takeInfo.scale;
+/** Least height of the caption strip under the page. */
+export const STRIP = 120;
+/** Where the page sits in the frame: as large as fits above the caption strip, centred. */
+export const STAGE = (() => {
+  const h = Math.min(H - STRIP, (W * VIEW.h) / VIEW.w);
+  const w = (h * VIEW.w) / VIEW.h;
+  return { x: (W - w) / 2, y: 0, w, h };
+})();
+/**
+ * Deepest zoom, relative to the whole page. 1.5x shows a detail and still shows where it is;
+ * deeper zooms hide the rest of the app. The take's pixels set a hard limit too (TAKE_SCALE
+ * device px per CSS px, against STAGE.w / VIEW.w output px per CSS px with the whole page in view).
+ */
+export const MAX_ZOOM = Math.min(1.5, TAKE_SCALE / (STAGE.w / VIEW.w));
+/** Narrowest camera rect, in CSS px. */
+export const MIN_W = VIEW.w / MAX_ZOOM;
 
 // Theme
 // System fonts, first match wins. For identical output on every machine, load one with
@@ -37,37 +58,35 @@ export const B = takeBoxes as Record<string, Box | null>;
 const CURSOR = takeCursor as PointerLog;
 
 // ---------------------------------------------------------------------------
-// Camera: a 16:9 rect in CSS px that fills the frame. w = 1920 is the whole page.
+// Camera: a rect in the take's CSS px, with the viewport's aspect ratio, shown in the STAGE.
+// FULL (w = VIEW.w) is the whole page, and the default.
 export type Rect = { x: number; y: number; w: number };
 export type Key = { t: number; r: Rect };
-export const FULL: Rect = { x: 0, y: 0, w: W };
+export const FULL: Rect = { x: 0, y: 0, w: VIEW.w };
+const heightOf = (w: number) => (w * VIEW.h) / VIEW.w;
 
 export const clampRect = (r: Rect): Rect => {
-  const w = Math.min(Math.max(r.w, MIN_W), W);
-  const h = (w * 9) / 16;
-  return { w, x: Math.min(Math.max(r.x, 0), W - w), y: Math.min(Math.max(r.y, 0), H - h) };
+  const w = Math.min(Math.max(r.w, MIN_W), VIEW.w);
+  return { w, x: Math.min(Math.max(r.x, 0), VIEW.w - w), y: Math.min(Math.max(r.y, 0), VIEW.h - heightOf(w)) };
 };
 
 type MaybeBox = Box | null | undefined;
 /**
- * A rect around a logged box (or several), with `pad` px around it and room at the bottom for
- * the caption (`captionSafe` of the frame height, default 18%), never tighter than MIN_W.
- * A tall box gives a wide rect (16:9 has to fit its height): box a smaller region instead, or
- * pass `w` to set the width yourself. The boxes are centred in the part of the frame above the
- * caption, so a small box (a button) sits mid-frame rather than against the top edge.
+ * A rect centred on a logged box (or several), with `pad` px around it, never tighter than
+ * MIN_W (MAX_ZOOM). Use it for a brief look at a small detail; most of a clip stays on FULL.
+ * If the boxes don't fit at MAX_ZOOM, the rect comes out wider; at FULL, stay wide instead.
+ * Pass `w` to set the width yourself; the rect stays centred on the boxes.
  */
-export const fit = (boxes: MaybeBox | MaybeBox[], opts: { pad?: number; captionSafe?: number; w?: number } = {}): Rect => {
+export const fit = (boxes: MaybeBox | MaybeBox[], opts: { pad?: number; w?: number } = {}): Rect => {
   const list = (Array.isArray(boxes) ? boxes : [boxes]).filter((b): b is Box => !!b);
   if (!list.length) return FULL;
-  const pad = opts.pad ?? 32;
-  const safe = opts.captionSafe ?? 0.18;
+  const pad = opts.pad ?? 24;
   const x0 = Math.min(...list.map((b) => b.x)) - pad;
   const y0 = Math.min(...list.map((b) => b.y)) - pad;
   const x1 = Math.max(...list.map((b) => b.x + b.width)) + pad;
   const y1 = Math.max(...list.map((b) => b.y + b.height)) + pad;
-  const w = opts.w ?? Math.max(x1 - x0, (((y1 - y0) / (1 - safe)) * 16) / 9, MIN_W);
-  const above = ((w * 9) / 16) * (1 - safe); // frame height above the caption
-  return clampRect({ x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - above / 2, w });
+  const w = opts.w ?? Math.max(x1 - x0, ((y1 - y0) * VIEW.w) / VIEW.h, MIN_W);
+  return clampRect({ x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - heightOf(w) / 2, w });
 };
 
 /** Camera position at `t` seconds into a clip: holds on each key, eases between them. */
@@ -94,36 +113,37 @@ export const Fade: React.FC<{ dur: number; inF?: number; outF?: number; bg?: str
   return <AbsoluteFill style={{ opacity: Math.min(fi, fo), background: bg }}>{children}</AbsoluteFill>;
 };
 
+/** One line in the strip under the page, with an optional act tag. Never covers the app. */
 export const Caption: React.FC<{ text: string; dur: number; part?: string }> = ({ text, dur, part }) => {
   const f = useCurrentFrame();
   const o = interpolate(f, [6, 16, dur - 10, dur], [0, 1, 1, 0], clamp);
-  const y = interpolate(f, [6, 18], [16, 0], { ...clamp, easing: ease });
+  const y = interpolate(f, [6, 18], [10, 0], { ...clamp, easing: ease });
+  const top = STAGE.y + STAGE.h;
   return (
-    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 56, display: 'flex', justifyContent: 'center', opacity: o, transform: `translateY(${y}px)` }}>
-      <div
-        style={{
-          maxWidth: 1600,
-          background: 'rgba(15,10,26,0.92)',
-          color: '#fff',
-          fontFamily: SANS,
-          fontSize: 38,
-          lineHeight: 1.3,
-          fontWeight: 500,
-          padding: '18px 34px',
-          borderRadius: 16,
-          boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 22,
-        }}
-      >
-        {part ? (
-          <span style={{ fontFamily: MONO, fontSize: 22, letterSpacing: 1, color: ACCENT, border: `2px solid ${ACCENT}`, borderRadius: 10, padding: '3px 10px', whiteSpace: 'nowrap' }}>
-            {part}
-          </span>
-        ) : null}
-        <span>{text}</span>
-      </div>
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top,
+        height: H - top,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 22,
+        opacity: o,
+        transform: `translateY(${y}px)`,
+        color: '#fff',
+        fontFamily: SANS,
+        fontSize: 36,
+        fontWeight: 500,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {part ? (
+        <span style={{ fontFamily: MONO, fontSize: 22, letterSpacing: 1, color: ACCENT, border: `2px solid ${ACCENT}`, borderRadius: 10, padding: '3px 10px' }}>{part}</span>
+      ) : null}
+      <span>{text}</span>
     </div>
   );
 };
@@ -160,25 +180,25 @@ export const Clip: React.FC<{ c: ClipSpec }> = ({ c }) => {
   const rate = c.rate ?? 1;
   const t = f / FPS;
   const r = camAt(t, c.keys);
-  const s = W / r.w;
+  const s = STAGE.w / r.w; // output px per CSS px
   const takeT = c.src + t * rate;
   const durF = sec(c.dur);
   return (
-    <Fade dur={durF} inF={c.fadeIn ? 8 : 0} outF={c.fadeOut ? 8 : 0}>
-      <AbsoluteFill style={{ overflow: 'hidden', background: '#fff' }}>
+    <Fade dur={durF} inF={c.fadeIn ? 8 : 0} outF={c.fadeOut ? 8 : 0} bg={INK}>
+      <div style={{ position: 'absolute', left: STAGE.x, top: STAGE.y, width: STAGE.w, height: STAGE.h, overflow: 'hidden', background: '#fff' }}>
         {/* Sized to the zoom, not CSS-scaled, so the 2x take is sampled directly. */}
         <OffthreadVideo
           src={staticFile('take.mp4')}
           trimBefore={Math.round(c.src * FPS)}
           playbackRate={rate}
           muted
-          style={{ position: 'absolute', left: -r.x * s, top: -r.y * s, width: W * s, height: H * s }}
+          style={{ position: 'absolute', left: -r.x * s, top: -r.y * s, width: VIEW.w * s, height: VIEW.h * s }}
         />
-        <div style={{ position: 'absolute', width: W, height: H, transformOrigin: '0 0', transform: `scale(${s}) translate(${-r.x}px, ${-r.y}px)` }}>
+        <div style={{ position: 'absolute', width: VIEW.w, height: VIEW.h, transformOrigin: '0 0', transform: `scale(${s}) translate(${-r.x}px, ${-r.y}px)` }}>
           {/* Inside the zoomed layer so it follows the camera; size / s keeps it the same on screen. */}
-          <Pointer log={CURSOR} t={takeT} size={33 / s} ring={RIPPLE} />
+          <Pointer log={CURSOR} t={takeT} size={30 / s} ring={RIPPLE} />
         </div>
-      </AbsoluteFill>
+      </div>
       {c.overlay?.(takeT)}
       <Caption text={c.caption} dur={durF} part={c.part} />
     </Fade>
@@ -335,6 +355,7 @@ export const RecapCard: React.FC<{ dur: number; items: { head: string; body: str
  * A terminal panel over the take, for something that happens outside the browser (an API or
  * MCP call). `t` is the take time from the clip's overlay; it slides in at `at` and the reply
  * line shows at `replyAt`. Key both to marks so the reply lands before the page changes.
+ * x, y and w are output px; put it over empty space, away from what is about to change.
  */
 export const Terminal: React.FC<{ t: number; at: number; replyAt: number; title: string; request: React.ReactNode[]; reply: React.ReactNode; x?: number; y?: number; w?: number }> = ({
   t,
